@@ -31,6 +31,9 @@ public class GridManager : MonoBehaviour
 
     private readonly HashSet<int> selectedTiles = new HashSet<int>();
 
+    private double? lastInterval;
+    private int countColumn, countRow;
+
     public GameObject tileObject;
 
     public Sprite selectedSprite;
@@ -73,9 +76,41 @@ public class GridManager : MonoBehaviour
 
     // Start is called before the first frame update
     void Start()
-    {
+    { 
         transform.position = Camera.main.ScreenToWorldPoint(new Vector3(Screen.width / 2, Screen.height / 2, Camera.main.nearClipPlane));
         GenerateGrid();
+        //StartCountinig();
+    }
+
+    void StartCountinig()
+    {
+        Debug.Log("Started counting");
+        lastInterval = Time.realtimeSinceStartup;
+        countColumn = 0;
+        countRow = 0;
+    }
+
+    void UpdateCount()
+    {
+        if (lastInterval == null)
+            return;
+
+        var diff = (int) Mathf.Ceil((float)(Time.realtimeSinceStartup - lastInterval));
+        if (diff >= 1.0)
+        {
+            lastInterval = Time.realtimeSinceStartup;
+            if (Rows == countRow)
+            {
+                countRow = 0;
+                if (countColumn == Columns) {
+                    countColumn = 0;
+                } else 
+                    countColumn += 1;
+            } else 
+                countRow += 1;
+
+            Debug.LogFormat("Row {0} Column {1}", countRow, countColumn);
+        }    
     }
 
     // Update is called once per frame
@@ -90,6 +125,14 @@ public class GridManager : MonoBehaviour
         {
             handleTouchOnNeed();
         }
+
+        UpdateCount();
+    }
+
+    public void onPlayPressed()
+    {
+        StartCountinig();
+        //TODO: change image or smth..
     }
 
     private void handleTouchOnNeed()
