@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+
 public class GridManager : MonoBehaviour
 {
     [SerializeField]
@@ -34,11 +35,18 @@ public class GridManager : MonoBehaviour
     private double? lastInterval;
     private int countColumn, countRow;
 
-    public GameObject tileObject;
+    private AudioManager audioManager;
 
+    public GameObject tileObject;
     public Sprite selectedSprite;
 
     #region Private
+
+    private void PrepareSound()
+    {
+        audioManager = FindObjectOfType<AudioManager>();
+    }
+
     private void GenerateGrid()
     {
         tileObject.transform.localScale = new Vector3(tileScale, tileScale);
@@ -72,6 +80,7 @@ public class GridManager : MonoBehaviour
     private void Awake()
     {
         Debug.Assert(tileObject != null);
+        PrepareSound();
     }
 
     // Start is called before the first frame update
@@ -79,7 +88,6 @@ public class GridManager : MonoBehaviour
     { 
         transform.position = Camera.main.ScreenToWorldPoint(new Vector3(Screen.width / 2, Screen.height / 2, Camera.main.nearClipPlane));
         GenerateGrid();
-        //StartCountinig();
     }
 
     void StartCountinig()
@@ -88,6 +96,11 @@ public class GridManager : MonoBehaviour
         lastInterval = Time.realtimeSinceStartup;
         countColumn = 0;
         countRow = 0;
+    }
+
+    void StopCountring()
+    {
+        lastInterval = null;
     }
 
     void UpdateCount()
@@ -99,15 +112,18 @@ public class GridManager : MonoBehaviour
         if (diff >= 1.0)
         {
             lastInterval = Time.realtimeSinceStartup;
-            if (Rows == countRow)
+            if (Rows - 1 == countRow)
             {
                 countRow = 0;
-                if (countColumn == Columns) {
+                if (countColumn == Columns - 1) {
                     countColumn = 0;
                 } else 
                     countColumn += 1;
             } else 
                 countRow += 1;
+
+            if (selectedTiles.Contains(countRow * Columns + countColumn))
+                audioManager.Play(countRow);
 
             Debug.LogFormat("Row {0} Column {1}", countRow, countColumn);
         }    
@@ -119,35 +135,33 @@ public class GridManager : MonoBehaviour
         if (Input.GetMouseButtonDown(0))
         {
             Debug.Log("Position " + Input.mousePosition);
-            handlePosition(Input.mousePosition);
+            HandlePosition(Input.mousePosition);
         }
         else
-        {
-            handleTouchOnNeed();
-        }
+            HandleTouchOnNeed();
 
         UpdateCount();
     }
 
-    public void onPlayPressed()
+    public void OnPlayPressed()
     {
         StartCountinig();
         //TODO: change image or smth..
     }
 
-    private void handleTouchOnNeed()
+    private void HandleTouchOnNeed()
     {
         foreach (var touch in Input.touches)
         {
             if (touch.phase == TouchPhase.Began)
             {
                 //Debug.Log("!!! Position " + touch.position);
-                handlePosition(touch.position);
+                HandlePosition(touch.position);
             }
         }
     }
 
-    private void handlePosition(Vector2 position)
+    private void HandlePosition(Vector2 position)
     {
         var wp = Camera.main.ScreenToWorldPoint(position);
         var touchPosition = new Vector2(wp.x, wp.y);
@@ -163,21 +177,28 @@ public class GridManager : MonoBehaviour
             Debug.Assert(rowIndex <= Rows);
             Debug.Assert(colIndex <= Columns);
             Debug.Log("!!! Item " + res);
-            swapChildState(res);
+            SwapChildState(res);
         }
     }
 
-    void swapChildState(int index)
+    void SwapChildState(int index)
     {
         if (selectedTiles.Contains(index))
             selectedTiles.Remove(index);
         else
             selectedTiles.Add(index);
 
-        changeChildState(index.ToString(), selectedTiles.Contains(index));
+        var shouldPlay = selectedTiles.Contains(index);
+        var rowIndex = index / Rows;
+        if (shouldPlay)
+            audioManager.Play(rowIndex, true);
+        else
+            audioManager.StopPlaying(rowIndex);
+
+        ChangeChildState(index.ToString(), shouldPlay);
     }
 
-    void changeChildState(string name, bool selected)
+    void ChangeChildState(string name, bool selected)
     {
         var childTranform = gameObject.transform.Find(name);
         var renderer = childTranform.GetComponent<SpriteRenderer>();
