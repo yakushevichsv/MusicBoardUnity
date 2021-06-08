@@ -40,6 +40,9 @@ public class GridManager : MonoBehaviour
     public GameObject tileObject;
     public Sprite selectedSprite;
 
+
+    public Button PlayOrPause;
+
     #region Private
 
     private void PrepareSound()
@@ -103,9 +106,14 @@ public class GridManager : MonoBehaviour
         lastInterval = null;
     }
 
+    bool IsCounting
+    {
+        get { return lastInterval != null;  }
+    }
+
     void UpdateCount()
     {
-        if (lastInterval == null)
+        if (!IsCounting)
             return;
 
         var diff = (int) Mathf.Ceil((float)(Time.realtimeSinceStartup - lastInterval));
@@ -143,9 +151,19 @@ public class GridManager : MonoBehaviour
         UpdateCount();
     }
 
+    private Animator PlayOrPauseAnimator => PlayOrPause.GetComponent<Animator>();
+
     public void OnPlayPressed()
     {
-        StartCountinig();
+        bool playClick;
+        if (IsCounting) {
+            StopCountring();
+            playClick = false;
+        } else {
+            playClick = true;
+            StartCountinig();
+        }
+        PlayOrPauseAnimator.SetBool("PlayClick", playClick);
         //TODO: change image or smth..
     }
 
