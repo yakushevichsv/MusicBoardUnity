@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,7 +12,7 @@ public class GridManager : MonoBehaviour
     public int Rows
     {
         get { return rows; }
-        set { rows = value; } 
+        set { rows = value; }
     }
 
     [SerializeField]
@@ -39,7 +40,7 @@ public class GridManager : MonoBehaviour
 
     public GameObject tileObject;
     public Sprite selectedSprite;
-
+    public Sprite countingSprite;
 
     public Button PlayOrPause;
 
@@ -56,7 +57,7 @@ public class GridManager : MonoBehaviour
         var size = tileObject.GetComponent<SpriteRenderer>().bounds.size;
         //size.x *= tileScale;
         //size.y *= tileScale;
-        
+
         float xOrigin = (float)((Columns - 1) * size.x * -0.5);
         float yOrigin = (float)((Rows - 1) * size.y * -0.5);
 
@@ -65,10 +66,10 @@ public class GridManager : MonoBehaviour
 
         for (var i = 0; i < Rows; i++)
         {
-            for (var j = 0; j< Columns; j++)
+            for (var j = 0; j < Columns; j++)
             {
                 var newTile = Instantiate(tileObject);
-          
+
                 newTile.transform.parent = transform;
                 newTile.name = (j + i * Columns).ToString();
                 newTile.transform.position = new Vector3(xPos, yPos, 0);
@@ -88,7 +89,7 @@ public class GridManager : MonoBehaviour
 
     // Start is called before the first frame update
     void Start()
-    { 
+    {
         transform.position = Camera.main.ScreenToWorldPoint(new Vector3(Screen.width / 2, Screen.height / 2, Camera.main.nearClipPlane));
         GenerateGrid();
     }
@@ -108,7 +109,7 @@ public class GridManager : MonoBehaviour
 
     bool IsCounting
     {
-        get { return lastInterval != null;  }
+        get { return lastInterval != null; }
     }
 
     void UpdateCount()
@@ -116,25 +117,40 @@ public class GridManager : MonoBehaviour
         if (!IsCounting)
             return;
 
-        var diff = (int) Mathf.Ceil((float)(Time.realtimeSinceStartup - lastInterval));
-        if (diff >= 1.0)
+        var diff = (int)Mathf.Ceil((float)(Time.realtimeSinceStartup - lastInterval));
+        var diffCondition = diff >= 2.5 * 1.0 / Math.Max(float.Epsilon, Time.timeScale);
+        if (diffCondition || countRow == 0 && countColumn == 0)
         {
-            lastInterval = Time.realtimeSinceStartup;
-            if (Rows - 1 == countRow)
+            if (diffCondition)
             {
-                countRow = 0;
-                if (countColumn == Columns - 1) {
-                    countColumn = 0;
-                } else 
-                    countColumn += 1;
-            } else 
-                countRow += 1;
+                lastInterval = Time.realtimeSinceStartup;
+                var oldIndex = countRow * Columns + countColumn;
+                ChangeChildState(oldIndex.ToString(), selectedTiles.Contains(oldIndex));
 
-            if (selectedTiles.Contains(countRow * Columns + countColumn))
+                if (Rows - 1 == countRow)
+                {
+                    countRow = 0;
+                    if (countColumn == Columns - 1)
+                    {
+                        countColumn = 0;
+                    }
+                    else
+                        countColumn += 1;
+                }
+                else
+                    countRow += 1;
+            }
+
+            var index = countRow * Columns + countColumn;
+            if (selectedTiles.Contains(index)) {
+                Debug.Assert(index >= 0 && index < Rows);
                 audioManager.Play(countRow);
+            } else {
+                ChangeChildState(index.ToString(), countingSprite);
+            }
 
             Debug.LogFormat("Row {0} Column {1}", countRow, countColumn);
-        }    
+        }
     }
 
     // Update is called once per frame
@@ -147,7 +163,10 @@ public class GridManager : MonoBehaviour
         }
         else
             HandleTouchOnNeed();
+    }
 
+    void FixedUpdate()
+    {
         UpdateCount();
     }
 
@@ -218,9 +237,19 @@ public class GridManager : MonoBehaviour
 
     void ChangeChildState(string name, bool selected)
     {
+        ChangeChildState(name, selected, selectedSprite, tileObject.GetComponent<SpriteRenderer>().sprite);
+    }
+
+    void ChangeChildState(string name, bool selected, Sprite selectedSprite, Sprite nonSelectedSprite)
+    {
+        ChangeChildState(name, selected ? selectedSprite : nonSelectedSprite);
+    }
+
+    void ChangeChildState(string name, Sprite sprite)
+    {
         var childTranform = gameObject.transform.Find(name);
         var renderer = childTranform.GetComponent<SpriteRenderer>();
-        renderer.sprite = selected ? selectedSprite : tileObject.GetComponent<SpriteRenderer>().sprite;
+        renderer.sprite = sprite;
     }
 
 }
