@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Timers;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -114,11 +115,11 @@ public class GridManager : MonoBehaviour
 
     void UpdateCount()
     {
-        if (!IsCounting)
+        if (!IsCounting || isPaused)
             return;
 
         var diff = (int)Mathf.Ceil((float)(Time.realtimeSinceStartup - lastInterval));
-        var diffCondition = diff >= 2.5 * 1.0 / Math.Max(float.Epsilon, Time.timeScale);
+        var diffCondition = diff >= 2.5;
         if (diffCondition || countRow == 0 && countColumn == 0)
         {
             if (diffCondition)
@@ -143,7 +144,7 @@ public class GridManager : MonoBehaviour
 
             var index = countRow * Columns + countColumn;
             if (selectedTiles.Contains(index)) {
-                Debug.Assert(index >= 0 && index < Rows);
+                Debug.Assert(index >= 0 && index < Rows * Columns);
                 audioManager.Play(countRow);
             } else {
                 ChangeChildState(index.ToString(), countingSprite);
@@ -172,14 +173,34 @@ public class GridManager : MonoBehaviour
 
     private Animator PlayOrPauseAnimator => PlayOrPause.GetComponent<Animator>();
 
+    private bool isPaused;
+
+    public void OnResetPressed()
+    {
+        StopCountring();
+        var index = countRow * Columns + countColumn;
+        ChangeChildState(index.ToString(), false);
+        countColumn = 0;
+        countRow = 0;
+        isPaused = false;//Time.timeScale == 0.0 freezes animation...
+
+        foreach (var selectedTile in selectedTiles)
+        {
+            ChangeChildState(selectedTile.ToString(), false);
+            audioManager.StopPlaying(selectedTile);
+        }
+        PlayOrPauseAnimator.SetBool("PlayClick", false);
+    }
+
     public void OnPlayPressed()
     {
         bool playClick;
         if (IsCounting) {
-            StopCountring();
             playClick = false;
+            isPaused = true;
         } else {
             playClick = true;
+            isPaused = false;
             StartCountinig();
         }
         PlayOrPauseAnimator.SetBool("PlayClick", playClick);
@@ -200,6 +221,9 @@ public class GridManager : MonoBehaviour
 
     private void HandlePosition(Vector2 position)
     {
+        if (isPaused)
+            return;
+
         var wp = Camera.main.ScreenToWorldPoint(position);
         var touchPosition = new Vector2(wp.x, wp.y);
 
