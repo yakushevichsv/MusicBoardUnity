@@ -56,9 +56,7 @@ public class GridManager : MonoBehaviour
     {
         tileObject.transform.localScale = new Vector3(tileScale, tileScale);
         var size = tileObject.GetComponent<SpriteRenderer>().bounds.size;
-        //size.x *= tileScale;
-        //size.y *= tileScale;
-
+        
         float xOrigin = (float)((Columns - 1) * size.x * -0.5);
         float yOrigin = (float)((Rows - 1) * size.y * -0.5);
 
@@ -70,10 +68,9 @@ public class GridManager : MonoBehaviour
             for (var j = 0; j < Columns; j++)
             {
                 var newTile = Instantiate(tileObject);
-
                 newTile.transform.parent = transform;
                 newTile.name = (j + i * Columns).ToString();
-                newTile.transform.position = new Vector3(xPos, yPos, 0);
+                newTile.transform.localPosition = new Vector3(xPos, yPos, 0);
                 xPos += size.x;
             }
             xPos = xOrigin;
@@ -91,16 +88,14 @@ public class GridManager : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        transform.position = Camera.main.ScreenToWorldPoint(new Vector3(Screen.width / 2, Screen.height / 2, Camera.main.nearClipPlane));
         GenerateGrid();
     }
 
     void StartCountinig()
     {
         Debug.Log("Started counting");
-        lastInterval = Time.realtimeSinceStartup;
-        countColumn = 0;
-        countRow = 0;
+        if (lastInterval == null)
+            lastInterval = Time.realtimeSinceStartup;
     }
 
     void StopCountring()
@@ -173,16 +168,21 @@ public class GridManager : MonoBehaviour
 
     private Animator PlayOrPauseAnimator => PlayOrPause.GetComponent<Animator>();
 
-    private bool isPaused;
+    private bool isPaused = true;
 
-    public void OnResetPressed()
+    void StopCountingAndReset()
     {
         StopCountring();
         var index = countRow * Columns + countColumn;
         ChangeChildState(index.ToString(), false);
+    }
+
+    public void OnResetPressed()
+    {
+        StopCountingAndReset();
         countColumn = 0;
         countRow = 0;
-        isPaused = false;//Time.timeScale == 0.0 freezes animation...
+        isPaused = true; //Time.timeScale == 0.0 freezes animation...
 
         foreach (var selectedTile in selectedTiles)
         {
@@ -190,12 +190,13 @@ public class GridManager : MonoBehaviour
             audioManager.StopPlaying(selectedTile);
         }
         PlayOrPauseAnimator.SetBool("PlayClick", false);
+        selectedTiles.Clear();
     }
 
     public void OnPlayPressed()
     {
         bool playClick;
-        if (IsCounting) {
+        if (!isPaused) { 
             playClick = false;
             isPaused = true;
         } else {
@@ -204,7 +205,7 @@ public class GridManager : MonoBehaviour
             StartCountinig();
         }
         PlayOrPauseAnimator.SetBool("PlayClick", playClick);
-        //TODO: change image or smth..
+        Debug.LogFormat("PlayClick {0}", playClick);
     }
 
     private void HandleTouchOnNeed()
